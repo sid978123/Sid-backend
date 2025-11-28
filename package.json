@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "A project which is used to learn backend development with Node.js",
   "keywords": [
     "javascript",
     "backend",
@@ -9,12 +9,9 @@
   ],
   "license": "ISC",
   "author": "sid",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.11"
+    "dev": "nodemon src/index.js"
   }
 }
