@@ -1,21 +1,34 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "A project which is used to learn backend development with Node.js",
+  "description": "this is a video series with javascript",
   "keywords": [
     "javascript",
-    "backend",
     "chai"
   ],
+  "homepage": "https://github.com/sid978123/Sid-backend#readme",
+  "bugs": {
+    "url": "https://github.com/sid978123/Sid-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sid978123/Sid-backend.git"
+  },
   "license": "ISC",
-  "author": "sid",
+  "author": "siddharth",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon -r dotenv/config src/index.js"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "prettier": "^3.7.1"
+    "nodemon": "^3.1.11"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "mongoose": "^9.0.0"
   }
 }
