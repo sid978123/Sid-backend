@@ -6,7 +6,7 @@ const userSchema = new Schema(
   {
     username: {
       type: String,
-      requierd: true,
+      required: true,
       unique: true,
       index: true,
       trim: true,
@@ -14,14 +14,14 @@ const userSchema = new Schema(
     },
     email: {
       type: String,
-      requierd: true,
+      required: true,
       lowercase: true,
       unique: true,
       trim: true,
     },
     fullName: {
       type: String,
-      requierd: true,
+      required: true,
       trim: true,
       index: true,
     },
@@ -31,7 +31,7 @@ const userSchema = new Schema(
     },
     password: {
       type: String,
-      requierd: [true, "password is required"],
+      required: [true, "password is required"],
       trim: true,
     },
     avatar: {
@@ -55,10 +55,12 @@ const userSchema = new Schema(
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) {
+    next();
+  }
 
   this.password = await bcrypt.hash(this.password, 10);
-  next();
+  next;
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
