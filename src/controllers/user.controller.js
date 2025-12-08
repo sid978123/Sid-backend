@@ -141,4 +141,82 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, createdUser, "user registerred successfully"));
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  //step 1 Here we are taking input from the frotnend
+  const { username, email, password } = req.body;
+
+  //step 2  Now we will verify the data send by the feontend wheather it is valid or not...
+
+  if (!password || (!email && !username)) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(400, "Enter a valid password");
+  }
+
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "user loggedIn successfully"
+      )
+    );
+});
+
+//logout user controller......................
+
+const logoutUser = asyncHandler(async (req, res) => {
+  //step 1 here we are taking the userId if user exist
+  const userId = req.user?._id;
+  //2. step2 here we are validating userId
+  if (!userId) {
+    throw new ApiError(404, "  Unauthorised request  ");
+  }
+  //step3 here we are removing our refresh tokens.....
+  await User.findByIdAndUpdate(
+    userId,
+
+    { $unset: { refreshToken: "" } },
+
+    { new: false }
+  );
+
+  //step 4 here we are removing our cookies
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+  res
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "user logged out successfully"));
+});
+
+export { registerUser, loginUser, logoutUser };
