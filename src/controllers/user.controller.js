@@ -145,12 +145,12 @@ const loginUser = asyncHandler(async (req, res) => {
   //step 1 Here we are taking input from the frotnend
   const { username, email, password } = req.body;
 
-  //step 2  Now we will verify the data send by the feontend wheather it is valid or not...
+  //step 2  Now we will verify the data send by the frontend wheather it is valid or not...
 
   if (!password || (!email && !username)) {
     throw new ApiError(400, "All fields are required");
   }
-
+  //step 3 Here we are going to get the value from the database.. and verify it
   const user = await User.findOne({
     $or: [{ username }, { email }],
   });
@@ -158,25 +158,36 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User not found");
   }
-
+  //step 5 here we will check the password[ from the databse ] and ispassword from the frontend , if it is correct then proceed ..
   const isPasswordValid = await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
     throw new ApiError(400, "Enter a valid password");
   }
-
+  // step 6 Here we are generating access and refreshTokens  and assinginng refreshToken to the user
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
+  return { accessToken: accessToken, refreshToken: refreshToken };
+
+  //step 7 Hre we are removing the sensitive data from the database
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
+  //step 8 here we are setting the cookies so that only server can modify it....
 
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+  //Step 9 giving the response to the User..
   return res
     .status(200)
+    .cookie("accessToken", accessToken, Options)
+    .cookie("refreshToken", refreshToken, Options)
     .json(
       new ApiResponse(
         200,
