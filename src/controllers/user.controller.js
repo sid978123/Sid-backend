@@ -8,24 +8,37 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, username, email, password } = req.body;
+
+  // 1️⃣ Validate input
   if (
-    [fullName, username, email, password].some((field) => field?.trim() === "")
-  )
-    throw new ApiError(400, "All fields are required.");
-  const existedUser = await User.findOne({
-    $or: [{ email }, { username }],
-  });
-  if (existedUser) {
-    throw new ApiError(400, "user is already exist.");
+    [fullName, username, email, password].some(
+      (field) => typeof field !== "string" || field.trim() === ""
+    )
+  ) {
+    throw new ApiError(400, "All fields are required");
   }
+
+  // 2️⃣ Check if user exists
+  const existedUser = await User.findOne({
+    $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }],
+  });
+
+  if (existedUser) {
+    throw new ApiError(409, "User already exists");
+  }
+
+  // 3️⃣ Avatar (required)
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
   if (!avatarLocalPath) {
-    throw new ApiError(400, "avatar field is required.");
+    throw new ApiError(400, "Avatar is required");
   }
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImageLocalPath = req.files?.coverImage?.[0].path;
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+  // 4️⃣ Cover image (optional)
+  const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  // 5️⃣ Create user
   const user = await User.create({
     fullName,
     username: username.toLowerCase(),
@@ -35,6 +48,7 @@ const registerUser = asyncHandler(async (req, res) => {
     coverImage: coverImage?.url || "",
   });
 
+  // 6️⃣ Safe response object
   const createdUser = {
     _id: user._id,
     fullName: user.fullName,
@@ -43,9 +57,10 @@ const registerUser = asyncHandler(async (req, res) => {
     avatar: user.avatar,
     coverImage: user.coverImage,
   };
+
   return res
     .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered Successfully"));
+    .json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
 
 // //📃📃login user controller......................

@@ -29,3 +29,23 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, error?.message || "Invalid Access Token");
   }
 });
+
+// const verifyJWT = asyncHandler(async(req , res) =>{
+//   try {
+//     const token = await req.cookie?.accessToken || req.header("Authentication").replace("Bearer " , "")
+//     if(!token){
+//       throw new ApiError(401 , "token not exist")
+//     }
+//     const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+//     const user = await user.findByIdAndUpdate(decodeToken?._id).select(
+//       "-password -refreshToken"
+//     )
+
+//     if(!user){
+//       throw new ApiError()
+//     }
+
+//   } catch (error) {
+
+//   }
+// })
