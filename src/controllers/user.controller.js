@@ -3,6 +3,27 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
+
+const generateAccessTokenAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(401, "user not found");
+    }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating accessToken and refreshToken"
+    );
+  }
+};
 
 // //📃📃register user controller......................
 
@@ -83,12 +104,8 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Invalid credentials");
   }
 
-  const accessToken = user.generateAccessToken();
-  const refreshToken = user.generateRefreshToken();
-
-  user.refreshToken = refreshToken;
-
-  await user.save({ validateBeforeSave: false });
+  const { accessToken, refreshToken } =
+    await generateAccessTokenAndRefreshToken(user._id);
 
   const loggedInUser = {
     _id: user._id,
@@ -146,4 +163,57 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "user logged out successfully"));
 });
 
-export { registerUser, loginUser, logoutUser };
+const refAccessToken = asyncHandler(async (req, res) => {
+  //1️⃣ here user is sending the refreshToken through cookies or through Body.
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken; // here we have written code for both desktop and mobile both.
+
+  //2️⃣ here we are validating wheather incomingRefresh Token exist or not.
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "unauthorised request");
+  }
+  //3️⃣ here we verify the incoming refesh Token with our secret refresh Token which are stored in the     .env file
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    //4️⃣ Here As we have access of user from JWt so we get the user by userid and then verify decoded refreshToken  and user refershToken
+
+    const user = User.findById(decodedToken?._id);
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh Token");
+    }
+
+    if (decodedToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh Token us Expired or used");
+    }
+
+    //5️⃣ Now we generated access and refresh Token and then store it in the cookie
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessTokenAndRefreshToken(user._id);
+    //6️⃣ Now we returned the response of the new refresh Token.
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken ", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, newRefreshToken },
+          "Access Token refreshed Successfully"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(402, error?.message || "Invalid refresh Token");
+  }
+});
+
+export { registerUser, loginUser, logoutUser, refAccessToken };
