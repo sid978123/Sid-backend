@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import { subscription } from "../models/subscription.model.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
   try {
@@ -266,7 +267,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.files;
+  const avatarLocalPath = req.files?.path;
   if (!avatarLocalPath) {
     throw new ApiError(404, "Avatar file is missing");
   }
@@ -288,7 +289,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, user, "Avatar is updated"));
 });
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-  const coverImageLocalPath = req.files;
+  const coverImageLocalPath = req.files?.path;
   if (!coverImageLocalPath) {
     throw new ApiError(404, "Cover Image file is missing");
   }
@@ -311,6 +312,128 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, user, "Avatar is updated"));
 });
 
+const getUserChannerProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) {
+    throw new ApiError(400, "username is missing");
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscriber",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelSubscribedToCount: {
+          $size: "$susubscribedTob",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.usr?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelSubscribedToCount: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exists");
+  }
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "user channel fetched successfully")
+    );
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "video",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner", // where u are at current time
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched Successfully"
+      )
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -321,4 +444,6 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannerProfile,
+  getWatchHistory,
 };
